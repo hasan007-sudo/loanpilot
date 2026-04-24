@@ -1,0 +1,212 @@
+{
+  "agent_config": {
+    "agent_name": "LoanPilot — Priya (Apex Bank)",
+    "agent_welcome_message": "Hello! This is Priya calling from Apex Bank. Do you have 2 minutes? I'd like to share a pre-approved loan offer tailored for you.",
+    "webhook_url": "https://YOUR_BACKEND_URL/webhook/bolna",
+    "agent_type": "extraction_agent",
+    "tasks": [
+      {
+        "task_type": "conversation",
+        "toolchain": {
+          "execution": "parallel",
+          "pipelines": [
+            ["transcriber", "llm", "synthesizer"]
+          ]
+        },
+        "tools_config": {
+          "llm_agent": {
+            "agent_type": "simple_llm_agent",
+            "agent_flow_type": "streaming",
+            "use_fillers": true,
+            "llm_config": {
+              "provider": "openai",
+              "family": "openai",
+              "model": "gpt-4o",
+              "max_tokens": 200,
+              "temperature": 0.3,
+              "top_p": 0.9,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "base_url": "https://api.openai.com/v1"
+            }
+          },
+          "synthesizer": {
+            "provider": "sarvam",
+            "provider_config": {
+              "model": "bulbul:v2"
+            },
+            "stream": true,
+            "buffer_size": 250,
+            "audio_format": "wav"
+          },
+          "transcriber": {
+            "provider": "deepgram",
+            "model": "nova-3",
+            "language": "en-IN",
+            "stream": true,
+            "sampling_rate": 16000,
+            "encoding": "linear16",
+            "endpointing": 250
+          },
+          "input": {
+            "provider": "twilio",
+            "format": "wav"
+          },
+          "output": {
+            "provider": "twilio",
+            "format": "wav"
+          },
+          "api_tools": {
+            "tools": [
+              {
+                "name": "fetch_customer_profile",
+                "key": "custom_task",
+                "description": "Fetch existing customer data from the bank CRM using their phone number. Call this at the very start of the conversation to personalize the interaction.",
+                "pre_call_message": "Let me pull up your account details.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "phone": {
+                      "type": "string",
+                      "description": "Customer phone number in E.164 format e.g. +919876543210"
+                    }
+                  },
+                  "required": ["phone"]
+                }
+              },
+              {
+                "name": "check_eligibility",
+                "key": "custom_task",
+                "description": "Check if the customer pre-qualifies for the requested loan based on income and loan type. Call this after collecting all 4 data points: loan_type, loan_amount, monthly_income, and employment_type.",
+                "pre_call_message": "Let me quickly check your eligibility. Just a moment.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "loan_type": {
+                      "type": "string",
+                      "description": "Type of loan: home, personal, business, or auto"
+                    },
+                    "loan_amount": {
+                      "type": "number",
+                      "description": "Requested loan amount in INR"
+                    },
+                    "monthly_income": {
+                      "type": "number",
+                      "description": "Customer monthly income in INR"
+                    },
+                    "employment_type": {
+                      "type": "string",
+                      "description": "salaried, self_employed, or business_owner"
+                    }
+                  },
+                  "required": ["loan_type", "loan_amount", "monthly_income", "employment_type"]
+                }
+              },
+              {
+                "name": "log_lead",
+                "key": "custom_task",
+                "description": "Save the lead data and conversation outcome to the CRM. ALWAYS call this at the end of every call, even if not interested.",
+                "pre_call_message": "Let me save your details.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "loan_type": {
+                      "type": "string",
+                      "description": "Loan type discussed: home, personal, business, or auto"
+                    },
+                    "loan_amount": {
+                      "type": "number",
+                      "description": "Loan amount in INR if provided"
+                    },
+                    "monthly_income": {
+                      "type": "number",
+                      "description": "Monthly income in INR if provided"
+                    },
+                    "employment_type": {
+                      "type": "string",
+                      "description": "Employment type if provided"
+                    },
+                    "status": {
+                      "type": "string",
+                      "description": "Call outcome: not_interested, interested, pre_qualified, or called"
+                    },
+                    "call_transcript": {
+                      "type": "string",
+                      "description": "Brief plain-text summary of what was discussed in the call"
+                    }
+                  },
+                  "required": ["status"]
+                }
+              }
+            ],
+            "tools_params": {
+              "fetch_customer_profile": {
+                "method": "POST",
+                "url": "https://YOUR_BACKEND_URL/webhook/bolna",
+                "api_token": "",
+                "param": {
+                  "tool_name": "fetch_customer_profile",
+                  "call_id": "%(call_id)s",
+                  "parameters": {
+                    "phone": "%(phone)s"
+                  }
+                }
+              },
+              "check_eligibility": {
+                "method": "POST",
+                "url": "https://YOUR_BACKEND_URL/webhook/bolna",
+                "api_token": "",
+                "param": {
+                  "tool_name": "check_eligibility",
+                  "call_id": "%(call_id)s",
+                  "parameters": {
+                    "loan_type": "%(loan_type)s",
+                    "loan_amount": "%(loan_amount)f",
+                    "monthly_income": "%(monthly_income)f",
+                    "employment_type": "%(employment_type)s"
+                  }
+                }
+              },
+              "log_lead": {
+                "method": "POST",
+                "url": "https://YOUR_BACKEND_URL/webhook/bolna",
+                "api_token": "",
+                "param": {
+                  "tool_name": "log_lead",
+                  "call_id": "%(call_id)s",
+                  "parameters": {
+                    "loan_type": "%(loan_type)s",
+                    "loan_amount": "%(loan_amount)f",
+                    "monthly_income": "%(monthly_income)f",
+                    "employment_type": "%(employment_type)s",
+                    "status": "%(status)s",
+                    "call_transcript": "%(call_transcript)s"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "task_config": {
+          "hangup_after_silence": 15,
+          "call_terminate": 180,
+          "incremental_delay": 400,
+          "number_of_words_for_interruption": 2,
+          "backchanneling": true,
+          "backchanneling_message_gap": 8,
+          "backchanneling_start_delay": 5,
+          "voicemail": false
+        }
+      }
+    ],
+    "calling_guardrails": {
+      "call_start_hour": 9,
+      "call_end_hour": 20
+    }
+  },
+  "agent_prompts": {
+    "task_1": {
+      "system_prompt": "You are Priya, a friendly loan advisor calling on behalf of Apex Bank.\n\nYour ONLY job: have a brief 3-minute conversation to check if the customer wants a loan and collect their basic details.\n\n## Personality\n- Warm, professional, never robotic\n- Switch to Hindi/Hinglish naturally if the customer does\n- Never pushy — respect 'not interested' immediately\n\n## Rules\n1. NEVER promise loan approval — say 'pre-qualification' only\n2. NEVER quote interest rates or EMI — say 'our Relationship Manager will share exact details'\n3. If not interested — log and end politely, do not push\n4. Max 3 minutes — keep questions short\n5. Collect ONLY: loan_type, loan_amount, monthly_income, employment_type\n6. ALWAYS call log_lead at end of every call\n\n## Conversation Steps\n\nSTEP 1 - GREETING:\n'Hello! Am I speaking with [Name]? This is Priya from Apex Bank. I have a quick 2-minute update about a loan offer — is this a good time?'\n→ Call fetch_customer_profile to get their name\n\nSTEP 2 - INTEREST:\n'We have offers on Home Loans, Personal Loans, Business Loans, and Auto Loans. Are you or your family looking for any of these?'\n→ If no: call log_lead with status=not_interested, say goodbye\n→ If yes: note loan_type, continue\n\nSTEP 3 - DETAILS (one question at a time):\n- 'Roughly what loan amount were you thinking? Even an approximate is fine.'\n- 'Could you share your approximate monthly income?'\n- 'Are you currently salaried, self-employed, or do you run a business?'\n\nSTEP 4 - CHECK:\n→ Call check_eligibility with all 4 data points\n\nSTEP 5 - OUTCOME:\n- If eligible: 'Great news! You appear eligible for up to [max_amount]. Our RM will call you with exact details. Does that work?'\n- If ineligible: 'Thank you for sharing. Based on current criteria we may not be able to proceed now — but our RM can explore options.'\n- If review_needed: 'Your profile looks promising! I'll pass your details to our team and someone will call within 24 hours.'\n\nSTEP 6: Call log_lead with all collected data and status\n\nSTEP 7 - CLOSE:\n'Thank you so much [Name]! We'll be in touch soon. Have a wonderful day!'\n\n## Edge Cases\n- 'Is this spam?' → 'Not at all, I'm Priya from Apex Bank. You can verify by calling 1800-XXX-XXXX.'\n- 'What's the interest rate?' → 'Our RM will share the exact rate based on your profile.'\n- 'Let me think' → Log as interested, say RM will call back\n- Vague income like 'around 50k' → Accept it, don't push for exact"
+    }
+  }
+}
