@@ -2,7 +2,6 @@
   "agent_name": "LoanPilot Pre-Qualification Agent",
   "agent_type": "extraction_agent",
   "agent_welcome_message": "Hello! This is Priya calling from Apex Bank. Do you have 2 minutes? I'd like to share a pre-approved loan offer tailored for you.",
-  "webhook_url": "http://localhost:8000/webhook/bolna",
   "tasks": [
     {
       "task_type": "conversation",
@@ -23,7 +22,7 @@
             "temperature": 0.3,
             "base_url": ""
           },
-          "system_prompt": "You are Priya, a loan advisor for Apex Bank. Follow the conversation flow and tool call instructions in the attached prompt document exactly."
+          "system_prompt": "You are Priya, a loan advisor for Apex Bank. Follow the conversation flow and tool call instructions in the agent_prompt.md exactly. Collect: loan_type, loan_amount, monthly_income, employment_type. Call check_eligibility after collecting all 4. Always call log_lead at the end of the call."
         },
         "synthesizer": {
           "provider": "elevenlabs",
@@ -49,35 +48,41 @@
         {
           "name": "fetch_customer_profile",
           "description": "Fetch existing customer data from the bank CRM using their phone number. Call this at the very start of the conversation to personalize the interaction.",
-          "url": "http://localhost:8000/webhook/bolna",
-          "method": "POST",
+          "pre_call_message": "Let me pull up your account details.",
           "parameters": {
             "type": "object",
             "properties": {
               "phone": {
                 "type": "string",
-                "description": "Customer's phone number in E.164 format e.g. +919876543210"
+                "description": "Customer phone number in E.164 format e.g. +919876543210"
               }
             },
             "required": ["phone"]
+          },
+          "key": "custom_task",
+          "value": {
+            "method": "POST",
+            "param": {
+              "tool_name": "fetch_customer_profile",
+              "phone": "%(phone)s"
+            },
+            "url": "https://YOUR_BACKEND_URL/webhook/bolna",
+            "api_token": "",
+            "headers": {
+              "Content-Type": "application/json"
+            }
           }
         },
         {
           "name": "check_eligibility",
           "description": "Check if the customer pre-qualifies for the requested loan based on their income and loan type. Call this after collecting loan_type, loan_amount, monthly_income, and employment_type.",
-          "url": "http://localhost:8000/webhook/bolna",
-          "method": "POST",
+          "pre_call_message": "Let me quickly check your eligibility. Just a moment.",
           "parameters": {
             "type": "object",
             "properties": {
-              "phone": {
-                "type": "string",
-                "description": "Customer phone number"
-              },
               "loan_type": {
                 "type": "string",
-                "enum": ["home", "personal", "business", "auto"],
-                "description": "Type of loan the customer is interested in"
+                "description": "Type of loan: home, personal, business, or auto"
               },
               "loan_amount": {
                 "type": "number",
@@ -85,58 +90,83 @@
               },
               "monthly_income": {
                 "type": "number",
-                "description": "Customer's monthly income in INR"
+                "description": "Customer monthly income in INR"
               },
               "employment_type": {
                 "type": "string",
-                "enum": ["salaried", "self_employed", "business_owner"],
-                "description": "Customer's employment type"
+                "description": "salaried, self_employed, or business_owner"
               }
             },
-            "required": ["phone", "loan_type", "loan_amount", "monthly_income", "employment_type"]
+            "required": ["loan_type", "loan_amount", "monthly_income", "employment_type"]
+          },
+          "key": "custom_task",
+          "value": {
+            "method": "POST",
+            "param": {
+              "tool_name": "check_eligibility",
+              "loan_type": "%(loan_type)s",
+              "loan_amount": "%(loan_amount)f",
+              "monthly_income": "%(monthly_income)f",
+              "employment_type": "%(employment_type)s"
+            },
+            "url": "https://YOUR_BACKEND_URL/webhook/bolna",
+            "api_token": "",
+            "headers": {
+              "Content-Type": "application/json"
+            }
           }
         },
         {
           "name": "log_lead",
-          "description": "Save the lead data and conversation outcome to the bank's CRM. ALWAYS call this at the end of every call, whether the customer is interested or not.",
-          "url": "http://localhost:8000/webhook/bolna",
-          "method": "POST",
+          "description": "Save the lead data and conversation outcome to the CRM. ALWAYS call this at the end of every call, even if not interested.",
+          "pre_call_message": "Let me save your details.",
           "parameters": {
             "type": "object",
             "properties": {
-              "phone": {
-                "type": "string",
-                "description": "Customer phone number"
-              },
               "loan_type": {
                 "type": "string",
-                "enum": ["home", "personal", "business", "auto"],
-                "description": "Loan type discussed, if any"
+                "description": "Loan type discussed: home, personal, business, or auto"
               },
               "loan_amount": {
                 "type": "number",
-                "description": "Requested loan amount in INR, if provided"
+                "description": "Loan amount in INR if provided"
               },
               "monthly_income": {
                 "type": "number",
-                "description": "Monthly income in INR, if provided"
+                "description": "Monthly income in INR if provided"
               },
               "employment_type": {
                 "type": "string",
-                "enum": ["salaried", "self_employed", "business_owner"],
-                "description": "Employment type, if provided"
+                "description": "Employment type if provided"
               },
               "status": {
                 "type": "string",
-                "enum": ["not_interested", "interested", "pre_qualified", "called"],
-                "description": "Outcome of the call"
+                "description": "Call outcome: not_interested, interested, pre_qualified, or called"
               },
               "call_transcript": {
                 "type": "string",
-                "description": "A brief plain-text summary of what was discussed in the call"
+                "description": "Brief summary of what was discussed in the call"
               }
             },
-            "required": ["phone", "status"]
+            "required": ["status"]
+          },
+          "key": "custom_task",
+          "value": {
+            "method": "POST",
+            "param": {
+              "tool_name": "log_lead",
+              "loan_type": "%(loan_type)s",
+              "loan_amount": "%(loan_amount)f",
+              "monthly_income": "%(monthly_income)f",
+              "employment_type": "%(employment_type)s",
+              "status": "%(status)s",
+              "call_transcript": "%(call_transcript)s"
+            },
+            "url": "https://YOUR_BACKEND_URL/webhook/bolna",
+            "api_token": "",
+            "headers": {
+              "Content-Type": "application/json"
+            }
           }
         }
       ]
