@@ -4,7 +4,16 @@
  * Do NOT import this in client components — use lib/api.ts instead.
  */
 import { prisma } from "@/lib/db";
-import type { DashboardStats, Lead, LeadDetail } from "@/lib/api";
+import type { Lead, LeadDetail, DashboardStats } from "@/lib/api";
+
+// Prisma returns Date objects; our shared types use ISO strings (matching JSON API).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function serializeDates<T>(obj: any): T {
+  if (!obj) return obj;
+  return Object.fromEntries(
+    Object.entries(obj).map(([k, v]) => [k, v instanceof Date ? v.toISOString() : v])
+  ) as T;
+}
 
 export async function getDashboardStats(): Promise<DashboardStats> {
   const [total, interested, qualified, notInterested] = await Promise.all([
@@ -28,16 +37,19 @@ export async function getLeads(filters?: {
   loan_type?: string;
   campaign_id?: number;
 }): Promise<Lead[]> {
-  return prisma.lead.findMany({
+  const rows = await prisma.lead.findMany({
     where: {
       ...(filters?.status && { status: filters.status }),
       ...(filters?.loan_type && { loanType: filters.loan_type }),
       ...(filters?.campaign_id && { campaignId: filters.campaign_id }),
     },
     orderBy: { createdAt: "desc" },
-  }) as Promise<Lead[]>;
+  });
+  return rows.map(r => serializeDates<Lead>(r));
 }
 
 export async function getLead(id: number): Promise<LeadDetail | null> {
-  return prisma.lead.findUnique({ where: { id } }) as Promise<LeadDetail | null>;
+  const row = await prisma.lead.findUnique({ where: { id } });
+  if (!row) return null;
+  return serializeDates<LeadDetail>(row);
 }
