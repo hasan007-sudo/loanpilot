@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { fetchLeads, fetchDashboardStats } from "@/lib/api";
+import { getDashboardStats, getLeads } from "@/lib/data";
 import { StatsCards } from "@/components/StatsCards";
 import { FunnelChart } from "@/components/FunnelChart";
 import { LeadsTable } from "@/components/LeadsTable";
@@ -13,8 +13,8 @@ interface PageProps {
 export default async function LeadsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const [stats, leads] = await Promise.all([
-    fetchDashboardStats(),
-    fetchLeads({ status: params.status, loan_type: params.loan_type }),
+    getDashboardStats(),
+    getLeads({ status: params.status, loan_type: params.loan_type }),
   ]);
 
   return (

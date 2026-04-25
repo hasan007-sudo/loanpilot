@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { fetchLead } from "@/lib/api";
+import { getLead } from "@/lib/data";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ConversationSummary } from "@/components/ConversationSummary";
 import { LeadStatusUpdater } from "@/components/LeadStatusUpdater";
@@ -21,12 +21,8 @@ function formatINR(amount: number | null) {
 
 export default async function LeadDetailPage({ params }: PageProps) {
   const { id } = await params;
-  let lead;
-  try {
-    lead = await fetchLead(Number(id));
-  } catch {
-    notFound();
-  }
+  const lead = await getLead(Number(id));
+  if (!lead) notFound();
 
   const fields = [
     { label: "Phone", value: lead.phone },
