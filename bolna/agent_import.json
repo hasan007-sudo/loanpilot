@@ -2,7 +2,7 @@
   "agent_config": {
     "agent_name": "LoanPilot — Priya (Apex Bank)",
     "agent_welcome_message": "Hello! This is Priya calling from Apex Bank. Do you have 2 minutes? I'd like to share a pre-approved loan offer tailored for you.",
-    "webhook_url": "https://YOUR_BACKEND_URL/webhook/bolna",
+    "webhook_url": "https://mendy-undelectable-dinah.ngrok-free.dev/webhook/bolna",
     "agent_type": "extraction_agent",
     "tasks": [
       {
@@ -10,7 +10,11 @@
         "toolchain": {
           "execution": "parallel",
           "pipelines": [
-            ["transcriber", "llm", "synthesizer"]
+            [
+              "transcriber",
+              "llm",
+              "synthesizer"
+            ]
           ]
         },
         "tools_config": {
@@ -21,19 +25,22 @@
             "llm_config": {
               "provider": "openai",
               "family": "openai",
-              "model": "gpt-4o",
+              "model": "openai/gpt-4o",
               "max_tokens": 200,
               "temperature": 0.3,
               "top_p": 0.9,
               "presence_penalty": 0,
               "frequency_penalty": 0,
-              "base_url": "https://api.openai.com/v1"
+              "base_url": "https://openrouter.ai/api/v1"
             }
           },
           "synthesizer": {
             "provider": "sarvam",
             "provider_config": {
-              "model": "bulbul:v2"
+              "voice": "anushka",
+              "voice_id": "anushka",
+              "model": "bulbul:v2",
+              "language": "en-IN"
             },
             "stream": true,
             "buffer_size": 250,
@@ -42,7 +49,7 @@
           "transcriber": {
             "provider": "deepgram",
             "model": "nova-3",
-            "language": "en-IN",
+            "language": "en",
             "stream": true,
             "sampling_rate": 16000,
             "encoding": "linear16",
@@ -71,7 +78,9 @@
                       "description": "Customer phone number in E.164 format e.g. +919876543210"
                     }
                   },
-                  "required": ["phone"]
+                  "required": [
+                    "phone"
+                  ]
                 }
               },
               {
@@ -99,7 +108,12 @@
                       "description": "salaried, self_employed, or business_owner"
                     }
                   },
-                  "required": ["loan_type", "loan_amount", "monthly_income", "employment_type"]
+                  "required": [
+                    "loan_type",
+                    "loan_amount",
+                    "monthly_income",
+                    "employment_type"
+                  ]
                 }
               },
               {
@@ -135,18 +149,19 @@
                       "description": "Brief plain-text summary of what was discussed in the call"
                     }
                   },
-                  "required": ["status"]
+                  "required": [
+                    "status"
+                  ]
                 }
               }
             ],
             "tools_params": {
               "fetch_customer_profile": {
                 "method": "POST",
-                "url": "https://YOUR_BACKEND_URL/webhook/bolna",
+                "url": "https://mendy-undelectable-dinah.ngrok-free.dev/webhook/bolna",
                 "api_token": "",
                 "param": {
                   "tool_name": "fetch_customer_profile",
-                  "call_id": "%(call_id)s",
                   "parameters": {
                     "phone": "%(phone)s"
                   }
@@ -154,11 +169,10 @@
               },
               "check_eligibility": {
                 "method": "POST",
-                "url": "https://YOUR_BACKEND_URL/webhook/bolna",
+                "url": "https://mendy-undelectable-dinah.ngrok-free.dev/webhook/bolna",
                 "api_token": "",
                 "param": {
                   "tool_name": "check_eligibility",
-                  "call_id": "%(call_id)s",
                   "parameters": {
                     "loan_type": "%(loan_type)s",
                     "loan_amount": "%(loan_amount)f",
@@ -169,11 +183,10 @@
               },
               "log_lead": {
                 "method": "POST",
-                "url": "https://YOUR_BACKEND_URL/webhook/bolna",
+                "url": "https://mendy-undelectable-dinah.ngrok-free.dev/webhook/bolna",
                 "api_token": "",
                 "param": {
                   "tool_name": "log_lead",
-                  "call_id": "%(call_id)s",
                   "parameters": {
                     "loan_type": "%(loan_type)s",
                     "loan_amount": "%(loan_amount)f",

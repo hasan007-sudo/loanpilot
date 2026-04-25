@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Campaign {
+  id               Int      @id @default(autoincrement())
+  name             String
+  bankName         String?
+  totalLeads       Int      @default(0)
+  calledCount      Int      @default(0)
+  interestedCount  Int      @default(0)
+  qualifiedCount   Int      @default(0)
+  bolnaBatchId     String?
+  status           String   @default("draft")
+  createdAt        DateTime @default(now())
+  leads            Lead[]
+}
+
+model Lead {
+  id             Int       @id @default(autoincrement())
+  phone          String    @unique
+  name           String?
+  campaignId     Int?
+  campaign       Campaign? @relation(fields: [campaignId], references: [id])
+  loanType       String?
+  loanAmount     Float?
+  monthlyIncome  Float?
+  employmentType String?
+  status         String    @default("called")
+  eligibility    String    @default("pending")
+  callTranscript String?
+  summary        String?
+  bolnaCallId    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
