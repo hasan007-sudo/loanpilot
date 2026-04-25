@@ -117,7 +117,7 @@ export async function updateLeadDetails(id: number, payload: LeadDetailsUpdate):
 export async function startCampaignBatch(
   campaignId: number,
   contacts: { phone: string; name?: string }[]
-): Promise<{ leads_created: number; bolna_batch_id: string | null; message: string }> {
+): Promise<{ leads_created: number; bolna_batch_id: string | null; demo_call_id?: string | null; message: string }> {
   return apiFetch(`/api/campaigns/${campaignId}/batch`, {
     method: "POST",
     body: JSON.stringify({ contacts }),
@@ -126,7 +126,7 @@ export async function startCampaignBatch(
 
 export async function retriggerCampaign(
   campaignId: number
-): Promise<{ campaign_id: number; leads_retriggered: number; bolna_batch_id: string | null; message: string }> {
+): Promise<{ campaign_id: number; leads_retriggered: number; bolna_batch_id: string | null; demo_call_id?: string | null; message: string }> {
   return apiFetch(`/api/campaigns/${campaignId}/retrigger`, {
     method: "POST",
   });

@@ -1,7 +1,7 @@
 {
   "agent_name": "LoanPilot Pre-Qualification Agent",
   "agent_type": "extraction_agent",
-  "agent_welcome_message": "Hello! This is Priya calling from Apex Bank. Do you have 2 minutes? I'd like to share a pre-approved loan offer tailored for you.",
+  "agent_welcome_message": "Hello, am I speaking with {customer_name}? This is Priya calling from {bank_name}.",
   "tasks": [
     {
       "task_type": "conversation",
@@ -11,10 +11,10 @@
           ["transcriber", "llm", "synthesizer"]
         ]
       },
-      "tools_config": {
-        "llm_agent": {
-          "agent_flow_type": "preprocessed",
-          "use_fillers": true,
+        "tools_config": {
+          "llm_agent": {
+            "agent_flow_type": "preprocessed",
+            "use_fillers": true,
           "llm_config": {
             "model": "gpt-4o-mini",
             "max_tokens": 200,
@@ -22,27 +22,40 @@
             "temperature": 0.3,
             "base_url": ""
           },
-          "system_prompt": "You are Priya, a loan advisor for Apex Bank. Follow the conversation flow and tool call instructions in the agent_prompt.md exactly. Collect: loan_type, loan_amount, monthly_income, employment_type. Call check_eligibility after collecting all 4. Always call log_lead at the end of the call."
+          "system_prompt": "Reference snapshot only. The canonical Bolna prompt for this project lives in agent_import.json. If you manually use this file, keep it synchronized with the imported prompt: greet the customer by {customer_name}, introduce yourself from {bank_name}, only then say 'Let me pull up your details' and call fetch_customer_profile, collect loan_type, loan_amount, monthly_income, employment_type, call check_eligibility after collecting all 4, and always call log_lead at the end of the call."
         },
         "synthesizer": {
-          "provider": "elevenlabs",
+          "provider": "sarvam",
           "stream": true,
           "provider_config": {
-            "voice": "Rachel",
-            "model": "eleven_flash_v2_5"
+            "voice": "anushka",
+            "voice_id": "anushka",
+            "model": "bulbul:v2",
+            "language": "en-IN"
           },
-          "buffer_size": 40
+          "buffer_size": 250,
+          "audio_format": "wav"
         },
         "transcriber": {
           "provider": "deepgram",
+          "model": "nova-3",
           "encoding": "linear16",
-          "language": "en-IN",
-          "stream": true
+          "language": "en",
+          "stream": true,
+          "sampling_rate": 16000,
+          "endpointing": 180
         }
       },
       "task_config": {
         "hangup_after_silence": 15,
-        "call_cancellation_prompt": "The customer has clearly indicated they are not interested or the conversation has naturally concluded."
+        "hangup_after_LLMCall": true,
+        "incremental_delay": 250,
+        "number_of_words_for_interruption": 2,
+        "backchanneling": true,
+        "backchanneling_message_gap": 8,
+        "backchanneling_start_delay": 5,
+        "voicemail": false,
+        "call_cancellation_prompt": "End the call immediately after the closing message if the user says goodbye, thank you, not interested, or if the qualification outcome and next step have already been delivered and no further question remains."
       },
       "tools": [
         {
@@ -66,7 +79,7 @@
               "tool_name": "fetch_customer_profile",
               "phone": "%(phone)s"
             },
-            "url": "https://YOUR_BACKEND_URL/webhook/bolna",
+            "url": "https://YOUR_BACKEND_URL/api/webhook/bolna",
             "api_token": "",
             "headers": {
               "Content-Type": "application/json"
@@ -109,7 +122,7 @@
               "monthly_income": "%(monthly_income)f",
               "employment_type": "%(employment_type)s"
             },
-            "url": "https://YOUR_BACKEND_URL/webhook/bolna",
+            "url": "https://YOUR_BACKEND_URL/api/webhook/bolna",
             "api_token": "",
             "headers": {
               "Content-Type": "application/json"
@@ -143,6 +156,10 @@
                 "type": "string",
                 "description": "Call outcome: not_interested, interested, pre_qualified, or called"
               },
+              "phone": {
+                "type": "string",
+                "description": "Customer phone number in E.164 format. Always pass the current caller number."
+              },
               "call_transcript": {
                 "type": "string",
                 "description": "Brief summary of what was discussed in the call"
@@ -160,9 +177,10 @@
               "monthly_income": "%(monthly_income)f",
               "employment_type": "%(employment_type)s",
               "status": "%(status)s",
+              "phone": "%(phone)s",
               "call_transcript": "%(call_transcript)s"
             },
-            "url": "https://YOUR_BACKEND_URL/webhook/bolna",
+            "url": "https://YOUR_BACKEND_URL/api/webhook/bolna",
             "api_token": "",
             "headers": {
               "Content-Type": "application/json"

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { normalizeBolnaError, shouldFallbackToDemoCall, triggerBolnaDemoCall } from "@/lib/bolna";
 
 // POST /api/campaigns/:id/batch
 // Accepts a JSON array of { phone, name? } and creates leads + triggers Bolna batch
@@ -8,6 +9,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const campaignId = Number(id);
 
   try {
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      select: { bankName: true },
+    });
+
     const body = await req.json();
     const contacts: { phone: string; name?: string }[] = body.contacts ?? [];
 
@@ -42,13 +48,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const fromNumber = process.env.BOLNA_FROM_NUMBER?.trim();
 
     let bolnaBatchId: string | null = null;
+    let demoCallId: string | null = null;
+    let message = "Leads saved. Set BOLNA_API_KEY, BOLNA_AGENT_ID, BOLNA_FROM_NUMBER to auto-trigger calls.";
 
     if (bolnaApiKey && bolnaAgentId && fromNumber) {
       // Build CSV content
-      const csvRows = ["contact_number,first_name"];
+      const csvRows = ["contact_number,first_name,customer_name,bank_name"];
       for (const c of contacts) {
-        const firstName = c.name?.split(" ")[0] ?? "";
-        csvRows.push(`${c.phone},${firstName}`);
+        const customerName = c.name?.trim() || "there";
+        const firstName = customerName.split(" ")[0] || "there";
+        const bankName = campaign?.bankName?.trim() || "Apex Bank";
+        csvRows.push(`${c.phone},${firstName},${customerName},${bankName}`);
       }
       const csvBlob = new Blob([csvRows.join("\n")], { type: "text/csv" });
       const formData = new FormData();
@@ -71,11 +81,51 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             data: { bolnaBatchId },
           });
         }
+        message = `Campaign running — Bolna batch ${bolnaBatchId} started`;
       } else {
-        const bolnaError = await bolnaRes.text();
+        const bolnaError = normalizeBolnaError(await bolnaRes.text());
         console.error("Bolna batch creation failed:", bolnaError);
+
+        if (shouldFallbackToDemoCall(bolnaError)) {
+          const firstContact = contacts[0];
+          const demoCall = await triggerBolnaDemoCall({
+            apiKey: bolnaApiKey,
+            agentId: bolnaAgentId,
+            lead: firstContact,
+            bankName: campaign?.bankName,
+          });
+
+          if (!demoCall.ok) {
+            return NextResponse.json(
+              { data: null, error: `Bolna batch creation failed: ${bolnaError}. Demo call fallback failed: ${demoCall.error}` },
+              { status: 502 }
+            );
+          }
+
+          demoCallId = demoCall.executionId;
+          message = `Demo mode active. First lead call queued successfully for ${firstContact.phone}${demoCallId ? ` (${demoCallId})` : ""}.`;
+        } else {
+          return NextResponse.json(
+            { data: null, error: `Bolna batch creation failed: ${bolnaError}` },
+            { status: 502 }
+          );
+        }
+      }
+    } else if (bolnaApiKey && bolnaAgentId && contacts.length > 0) {
+      const firstContact = contacts[0];
+      const demoCall = await triggerBolnaDemoCall({
+        apiKey: bolnaApiKey,
+        agentId: bolnaAgentId,
+        lead: firstContact,
+        bankName: campaign?.bankName,
+      });
+
+      if (demoCall.ok) {
+        demoCallId = demoCall.executionId;
+        message = `Demo mode active. First lead call queued successfully for ${firstContact.phone}${demoCallId ? ` (${demoCallId})` : ""}.`;
+      } else {
         return NextResponse.json(
-          { data: null, error: `Bolna batch creation failed: ${bolnaError}` },
+          { data: null, error: `Demo call fallback failed: ${demoCall.error}` },
           { status: 502 }
         );
       }
@@ -87,9 +137,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       data: {
         leads_created: contacts.length,
         bolna_batch_id: bolnaBatchId,
-        message: bolnaBatchId
-          ? `Campaign running — Bolna batch ${bolnaBatchId} started`
-          : "Leads saved. Set BOLNA_API_KEY, BOLNA_AGENT_ID, BOLNA_FROM_NUMBER to auto-trigger calls.",
+        demo_call_id: demoCallId,
+        message,
       },
       error: null,
     });

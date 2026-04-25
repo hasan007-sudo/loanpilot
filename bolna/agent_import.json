@@ -1,8 +1,8 @@
 {
   "agent_config": {
     "agent_name": "LoanPilot — Priya (Apex Bank)",
-    "agent_welcome_message": "Hello! This is Priya calling from Apex Bank. Do you have 2 minutes? I'd like to share a pre-approved loan offer tailored for you.",
-    "webhook_url": "https://mendy-undelectable-dinah.ngrok-free.dev/webhook/bolna",
+    "agent_welcome_message": "Hello, am I speaking with {customer_name}? This is Priya calling from {bank_name}.",
+    "webhook_url": "https://mendy-undelectable-dinah.ngrok-free.dev/api/webhook/bolna",
     "agent_type": "extraction_agent",
     "tasks": [
       {
@@ -20,7 +20,7 @@
         "tools_config": {
           "llm_agent": {
             "agent_type": "simple_llm_agent",
-            "agent_flow_type": "streaming",
+            "agent_flow_type": "preprocessed",
             "use_fillers": true,
             "llm_config": {
               "provider": "openai",
@@ -53,7 +53,7 @@
             "stream": true,
             "sampling_rate": 16000,
             "encoding": "linear16",
-            "endpointing": 250
+            "endpointing": 180
           },
           "input": {
             "provider": "twilio",
@@ -144,6 +144,10 @@
                       "type": "string",
                       "description": "Call outcome: not_interested, interested, pre_qualified, or called"
                     },
+                    "phone": {
+                      "type": "string",
+                      "description": "Customer phone number in E.164 format. Always pass the current caller number."
+                    },
                     "call_transcript": {
                       "type": "string",
                       "description": "Brief plain-text summary of what was discussed in the call"
@@ -158,7 +162,7 @@
             "tools_params": {
               "fetch_customer_profile": {
                 "method": "POST",
-                "url": "https://mendy-undelectable-dinah.ngrok-free.dev/webhook/bolna",
+                "url": "https://mendy-undelectable-dinah.ngrok-free.dev/api/webhook/bolna",
                 "api_token": "",
                 "param": {
                   "tool_name": "fetch_customer_profile",
@@ -169,7 +173,7 @@
               },
               "check_eligibility": {
                 "method": "POST",
-                "url": "https://mendy-undelectable-dinah.ngrok-free.dev/webhook/bolna",
+                "url": "https://mendy-undelectable-dinah.ngrok-free.dev/api/webhook/bolna",
                 "api_token": "",
                 "param": {
                   "tool_name": "check_eligibility",
@@ -183,7 +187,7 @@
               },
               "log_lead": {
                 "method": "POST",
-                "url": "https://mendy-undelectable-dinah.ngrok-free.dev/webhook/bolna",
+                "url": "https://mendy-undelectable-dinah.ngrok-free.dev/api/webhook/bolna",
                 "api_token": "",
                 "param": {
                   "tool_name": "log_lead",
@@ -193,6 +197,7 @@
                     "monthly_income": "%(monthly_income)f",
                     "employment_type": "%(employment_type)s",
                     "status": "%(status)s",
+                    "phone": "%(phone)s",
                     "call_transcript": "%(call_transcript)s"
                   }
                 }
@@ -202,13 +207,15 @@
         },
         "task_config": {
           "hangup_after_silence": 15,
+          "hangup_after_LLMCall": true,
           "call_terminate": 180,
-          "incremental_delay": 400,
+          "incremental_delay": 250,
           "number_of_words_for_interruption": 2,
           "backchanneling": true,
           "backchanneling_message_gap": 8,
           "backchanneling_start_delay": 5,
-          "voicemail": false
+          "voicemail": false,
+          "call_cancellation_prompt": "End the call immediately after the closing message if the user says goodbye, thank you, not interested, or if the qualification outcome and next step have already been delivered and no further question remains."
         }
       }
     ],
@@ -219,7 +226,7 @@
   },
   "agent_prompts": {
     "task_1": {
-      "system_prompt": "You are Priya, a friendly loan advisor calling on behalf of Apex Bank.\n\nYour ONLY job: have a brief 3-minute conversation to check if the customer wants a loan and collect their basic details.\n\n## Personality\n- Warm, professional, never robotic\n- Switch to Hindi/Hinglish naturally if the customer does\n- Never pushy — respect 'not interested' immediately\n\n## Rules\n1. NEVER promise loan approval — say 'pre-qualification' only\n2. NEVER quote interest rates or EMI — say 'our Relationship Manager will share exact details'\n3. If not interested — log and end politely, do not push\n4. Max 3 minutes — keep questions short\n5. Collect ONLY: loan_type, loan_amount, monthly_income, employment_type\n6. ALWAYS call log_lead at end of every call\n\n## Conversation Steps\n\nSTEP 1 - GREETING:\n'Hello! Am I speaking with [Name]? This is Priya from Apex Bank. I have a quick 2-minute update about a loan offer — is this a good time?'\n→ Call fetch_customer_profile to get their name\n\nSTEP 2 - INTEREST:\n'We have offers on Home Loans, Personal Loans, Business Loans, and Auto Loans. Are you or your family looking for any of these?'\n→ If no: call log_lead with status=not_interested, say goodbye\n→ If yes: note loan_type, continue\n\nSTEP 3 - DETAILS (one question at a time):\n- 'Roughly what loan amount were you thinking? Even an approximate is fine.'\n- 'Could you share your approximate monthly income?'\n- 'Are you currently salaried, self-employed, or do you run a business?'\n\nSTEP 4 - CHECK:\n→ Call check_eligibility with all 4 data points\n\nSTEP 5 - OUTCOME:\n- If eligible: 'Great news! You appear eligible for up to [max_amount]. Our RM will call you with exact details. Does that work?'\n- If ineligible: 'Thank you for sharing. Based on current criteria we may not be able to proceed now — but our RM can explore options.'\n- If review_needed: 'Your profile looks promising! I'll pass your details to our team and someone will call within 24 hours.'\n\nSTEP 6: Call log_lead with all collected data and status\n\nSTEP 7 - CLOSE:\n'Thank you so much [Name]! We'll be in touch soon. Have a wonderful day!'\n\n## Edge Cases\n- 'Is this spam?' → 'Not at all, I'm Priya from Apex Bank. You can verify by calling 1800-XXX-XXXX.'\n- 'What's the interest rate?' → 'Our RM will share the exact rate based on your profile.'\n- 'Let me think' → Log as interested, say RM will call back\n- Vague income like 'around 50k' → Accept it, don't push for exact"
+      "system_prompt": "You are Priya, a senior relationship manager calling on behalf of {bank_name}.\n\nYour ONLY job is to have a brief, realistic 3-minute conversation to understand whether the customer is looking for a loan and collect the basic details needed for an initial eligibility check.\n\n## Personality\n- Warm, professional, confident, and human sounding\n- Speak like a real bank relationship manager, not a bot\n- Switch to Hindi/Hinglish naturally if the customer does\n- Never pushy — respect 'not interested' immediately\n\n## Rules\n1. NEVER promise loan approval — say 'pre-qualification' or 'initial eligibility check' only\n2. NEVER quote interest rates or EMI — say 'our Relationship Manager will share the exact details'\n3. If not interested — log and end politely, do not push\n4. Max 3 minutes — keep questions short\n5. Collect ONLY: loan_type, loan_amount, monthly_income, employment_type\n6. ALWAYS call log_lead at end of every call\n7. Whenever you call log_lead, always include the customer's phone number in E.164 format using the current caller number (`user_number`).\n8. Do not call fetch_customer_profile before your opening greeting. First confirm you are speaking with the customer, then say 'Let me pull up your details,' then call fetch_customer_profile.\n9. Once the needed details are collected and the final outcome has been shared, thank the customer, call log_lead, give one short closing line, and end the conversation immediately. Do not wait in silence for the user to speak again unless they are still answering an unfinished question.\n\n## Conversation Steps\n\nSTEP 1 - OPENING:\nSay exactly: 'Hello, am I speaking with {customer_name}? This is Priya calling from {bank_name}.'\nIf the customer confirms or responds positively, say: 'Thank you. Let me pull up your details.'\nThen call fetch_customer_profile.\nAfter the tool call, continue with: 'I have a quick 2-minute update regarding our loan offers. Is this a good time?'\nIf they say no/busy, ask for a better callback time, log the lead, and end.\n\nSTEP 2 - INTEREST:\n'We have offers on Home Loans, Personal Loans, Business Loans, and Auto Loans. Are you or anyone in your family looking for any of these?'\n→ If no: call log_lead with status=not_interested, say goodbye\n→ If yes: note loan_type, continue\n\nSTEP 3 - DETAILS (one question at a time):\n- 'Roughly what loan amount were you thinking? Even an approximate is fine.'\n- 'Could you share your approximate monthly income?'\n- 'Are you currently salaried, self-employed, or do you run a business?'\n\nSTEP 4 - CHECK:\n→ Call check_eligibility with all 4 data points\n\nSTEP 5 - OUTCOME:\n- If eligible: 'Great news! You appear eligible for up to [max_amount]. Our RM will call you with exact details. Does that work?'\n- If ineligible: 'Thank you for sharing. Based on current criteria we may not be able to proceed now — but our RM can explore options.'\n- If review_needed: 'Your profile looks promising! I'll pass your details to our team and someone will call within 24 hours.'\n\nSTEP 6: Call log_lead with all collected data, status, and phone number\n\nSTEP 7 - CLOSE:\n'Thank you so much for your time, {customer_name}. We'll be in touch soon. Have a wonderful day!'\nAfter this closing line, end the conversation promptly unless the customer immediately asks another question.\n\n## Edge Cases\n- 'Is this spam?' → 'Not at all, I'm Priya from {bank_name}. You can verify by calling our helpline.'\n- 'What's the interest rate?' → 'Our Relationship Manager will share the exact rate based on your profile.'\n- 'Let me think' → Log as interested, say RM will call back\n- Vague income like 'around 50k' → Accept it, don't push for exact"
     }
   }
 }

@@ -34,7 +34,7 @@ Before creating an agent, add your API keys:
      Hello! This is Priya calling from Apex Bank. Do you have 2 minutes?
      I'd like to share a pre-approved loan offer tailored for you.
      ```
-   - **Agent Prompt**: Paste the full contents of `agent_prompt.md` into this field
+   - **Agent Prompt**: use the canonical prompt embedded in `agent_import.json`
    - **Hangup Condition**: `The customer has clearly indicated they are not interested or the conversation has concluded`
 
 3. Fill the **LLM Tab**:
@@ -54,6 +54,8 @@ Before creating an agent, add your API keys:
 
 ## Step 3 — Add Tools (Function Calls)
 
+> Prompt source of truth: `agent_import.json` is the only canonical Bolna prompt file in this repo. `agent_prompt.md` is deprecated and kept only as a pointer file.
+
 Go to the **Tools Tab** and add 3 custom tools. For each tool, use **Custom Function** and fill exactly as below.
 
 > **Critical**: The `key` field must always be `custom_task`. Replace `YOUR_BACKEND_URL` with your actual deployed URL (e.g. `https://abc123.ngrok.io`).
@@ -66,7 +68,7 @@ Go to the **Tools Tab** and add 3 custom tools. For each tool, use **Custom Func
 | Description | `Fetch existing customer data from the bank CRM using their phone number. Call this at the very start of the conversation.` |
 | Pre-call message | `Let me pull up your account details.` |
 | Method | POST |
-| URL | `https://YOUR_BACKEND_URL/webhook/bolna` |
+| URL | `https://YOUR_BACKEND_URL/api/webhook/bolna` |
 
 Parameters:
 ```json
@@ -98,7 +100,7 @@ phone = %(phone)s
 | Description | `Check if the customer pre-qualifies for the loan based on income and loan type. Call after collecting all 4 data points: loan_type, loan_amount, monthly_income, employment_type.` |
 | Pre-call message | `Let me quickly check your eligibility. Just a moment.` |
 | Method | POST |
-| URL | `https://YOUR_BACKEND_URL/webhook/bolna` |
+| URL | `https://YOUR_BACKEND_URL/api/webhook/bolna` |
 
 Parameters:
 ```json
@@ -133,7 +135,7 @@ employment_type = %(employment_type)s
 | Description | `Save the lead data and call outcome to the CRM. ALWAYS call this at the end of every call, even if not interested.` |
 | Pre-call message | `Let me save your details.` |
 | Method | POST |
-| URL | `https://YOUR_BACKEND_URL/webhook/bolna` |
+| URL | `https://YOUR_BACKEND_URL/api/webhook/bolna` |
 
 Parameters:
 ```json
@@ -145,6 +147,7 @@ Parameters:
     "monthly_income": { "type": "number" },
     "employment_type": { "type": "string" },
     "status": { "type": "string", "description": "not_interested, interested, pre_qualified, or called" },
+    "phone": { "type": "string", "description": "Customer phone number in E.164 format" },
     "call_transcript": { "type": "string", "description": "Brief summary of the call" }
   },
   "required": ["status"]
@@ -159,6 +162,7 @@ loan_amount = %(loan_amount)f
 monthly_income = %(monthly_income)f
 employment_type = %(employment_type)s
 status = %(status)s
+phone = %(phone)s
 call_transcript = %(call_transcript)s
 ```
 
@@ -168,7 +172,7 @@ call_transcript = %(call_transcript)s
 
 Go to the **Analytics Tab**:
 
-- **Webhook URL**: `https://YOUR_BACKEND_URL/webhook/bolna`
+- **Webhook URL**: `https://YOUR_BACKEND_URL/api/webhook/bolna`
 
 This sends the full call data (transcript, duration, recording) to your backend when a call completes.
 
@@ -181,7 +185,7 @@ Before running a batch, test manually:
 1. Go to **Agent Setup** → find your agent → click **Test Call**
 2. Enter your own mobile number
 3. Answer and walk through the conversation
-4. Check `GET http://localhost:8000/api/leads` to confirm the lead was logged
+4. Check `GET http://localhost:3000/api/leads` to confirm the lead was logged
 5. Check the dashboard at `http://localhost:3000/leads`
 
 ---
@@ -234,14 +238,14 @@ curl -X POST https://api.bolna.ai/batches/BATCH_ID/schedule \
 To expose your local backend to Bolna:
 
 ```bash
-# Terminal 1 — start backend
-cd backend && uv run uvicorn main:app --port 8000 --reload
+# Terminal 1 — start app
+npm run dev
 
 # Terminal 2 — expose via ngrok
-ngrok http 8000
+ngrok http 3000
 ```
 
-Copy the `https://xxxxx.ngrok.io` URL and replace `YOUR_BACKEND_URL` everywhere in the Bolna dashboard tool configs.
+Copy the `https://xxxxx.ngrok.io` URL and replace `YOUR_BACKEND_URL` everywhere in the Bolna dashboard tool configs. In this app the correct public endpoint is `/api/webhook/bolna`.
 
 ---
 
@@ -251,6 +255,6 @@ Copy the `https://xxxxx.ngrok.io` URL and replace `YOUR_BACKEND_URL` everywhere 
 |-------|-----|
 | Tool not triggering | Check that `key: "custom_task"` is set in tool config |
 | Webhook 422 error | Verify `tool_name` field is in the POST body and matches exactly |
-| Lead not appearing in dashboard | Check `/webhook/bolna` logs; ensure backend is running |
+| Lead not appearing in dashboard | Check `/api/webhook/bolna` logs; ensure the Next app and ngrok tunnel are running |
 | Agent not speaking Hindi | Customer must initiate — agent will match language |
 | Call ends too quickly | Increase `hangup_after_silence` in Engine Tab |
