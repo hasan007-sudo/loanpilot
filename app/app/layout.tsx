@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "LoanPilot — Voice AI for Banks",
@@ -13,10 +10,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-slate-50 min-h-screen`}>
+      <body className="min-h-screen antialiased">
         <Sidebar />
-        <main className="ml-60 min-h-screen p-8">
-          {children}
+        <main className="min-h-screen pl-0 lg:pl-72">
+          <div className="page-shell px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+            {children}
+          </div>
         </main>
       </body>
     </html>

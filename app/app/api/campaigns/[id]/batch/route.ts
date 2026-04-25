@@ -39,7 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // Trigger Bolna batch API
     const bolnaApiKey = process.env.BOLNA_API_KEY;
     const bolnaAgentId = process.env.BOLNA_AGENT_ID;
-    const fromNumber = process.env.BOLNA_FROM_NUMBER;
+    const fromNumber = process.env.BOLNA_FROM_NUMBER?.trim();
 
     let bolnaBatchId: string | null = null;
 
@@ -72,7 +72,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           });
         }
       } else {
-        console.error("Bolna batch creation failed:", await bolnaRes.text());
+        const bolnaError = await bolnaRes.text();
+        console.error("Bolna batch creation failed:", bolnaError);
+        return NextResponse.json(
+          { data: null, error: `Bolna batch creation failed: ${bolnaError}` },
+          { status: 502 }
+        );
       }
     } else {
       console.warn("BOLNA_API_KEY / BOLNA_AGENT_ID / BOLNA_FROM_NUMBER not set — skipping Bolna batch");

@@ -4,7 +4,7 @@
  * Do NOT import this in client components — use lib/api.ts instead.
  */
 import { prisma } from "@/lib/db";
-import type { Lead, LeadDetail, DashboardStats } from "@/lib/api";
+import type { Campaign, Lead, LeadDetail, DashboardStats } from "@/lib/api";
 
 // Prisma returns Date objects; our shared types use ISO strings (matching JSON API).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -52,4 +52,10 @@ export async function getLead(id: number): Promise<LeadDetail | null> {
   const row = await prisma.lead.findUnique({ where: { id } });
   if (!row) return null;
   return serializeDates<LeadDetail>(row);
+}
+
+export async function getCampaign(id: number): Promise<Campaign | null> {
+  const row = await prisma.campaign.findUnique({ where: { id } });
+  if (!row) return null;
+  return serializeDates<Campaign>(row);
 }

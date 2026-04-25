@@ -98,6 +98,22 @@ export async function updateLeadStatus(id: number, status: string): Promise<Lead
   });
 }
 
+export interface LeadDetailsUpdate {
+  name?: string | null;
+  phone?: string;
+  loanType?: string | null;
+  loanAmount?: number | null;
+  monthlyIncome?: number | null;
+  employmentType?: string | null;
+}
+
+export async function updateLeadDetails(id: number, payload: LeadDetailsUpdate): Promise<Lead> {
+  return apiFetch<Lead>(`/api/leads/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function startCampaignBatch(
   campaignId: number,
   contacts: { phone: string; name?: string }[]
@@ -105,6 +121,14 @@ export async function startCampaignBatch(
   return apiFetch(`/api/campaigns/${campaignId}/batch`, {
     method: "POST",
     body: JSON.stringify({ contacts }),
+  });
+}
+
+export async function retriggerCampaign(
+  campaignId: number
+): Promise<{ campaign_id: number; leads_retriggered: number; bolna_batch_id: string | null; message: string }> {
+  return apiFetch(`/api/campaigns/${campaignId}/retrigger`, {
+    method: "POST",
   });
 }
 

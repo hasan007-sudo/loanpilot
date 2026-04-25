@@ -33,23 +33,23 @@ export function LeadStatusUpdater({ leadId, currentStatus }: { leadId: number; c
         size="sm"
         onClick={() => setOpen((o) => !o)}
         disabled={loading}
-        className="flex items-center gap-2"
+        className="flex items-center gap-2 rounded-full border-black/10 bg-white/75 px-3 hover:bg-white"
       >
         <StatusBadge value={status} />
-        <ChevronDown className="w-3 h-3 text-gray-400" />
+        <ChevronDown className="h-3 w-3 text-muted-foreground" />
       </Button>
 
       {open && (
-        <div className="absolute right-0 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
-          <p className="text-xs text-gray-400 px-3 py-1.5 font-medium uppercase tracking-wide">Update Status</p>
+        <div className="absolute right-0 z-50 mt-2 w-56 rounded-[18px] border border-black/5 bg-white/95 py-2 shadow-[0_24px_50px_-28px_rgba(18,33,40,0.4)] backdrop-blur">
+          <p className="px-4 py-2 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Update Status</p>
           {LEAD_STATUSES.map(({ value, label }) => (
             <button
               key={value}
               onClick={() => handleSelect(value)}
-              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center justify-between"
+              className="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-black/3"
             >
               <span>{label}</span>
-              {value === status && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+              {value === status && <Check className="h-3.5 w-3.5 text-[#24616d]" />}
             </button>
           ))}
         </div>

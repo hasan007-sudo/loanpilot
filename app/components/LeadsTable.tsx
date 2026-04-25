@@ -33,57 +33,59 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
 
   return (
     <div>
-      <div className="rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm">
+      <div className="overflow-hidden rounded-[22px] border border-black/5 bg-white/72 shadow-[0_20px_50px_-36px_rgba(18,33,40,0.35)]">
         <Table>
           <TableHeader>
-            <TableRow className="bg-gray-50">
-              <TableHead className="text-xs font-semibold text-gray-600">Name / Phone</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-600">Loan Type</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-600">Amount</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-600">Income/mo</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-600">Employment</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-600">Status</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-600">Eligibility</TableHead>
-              <TableHead className="text-xs font-semibold text-gray-600">Date</TableHead>
+            <TableRow className="bg-[rgba(34,85,96,0.06)]">
+              <TableHead className="h-14 px-4 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Name / Phone</TableHead>
+              <TableHead className="h-14 px-4 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Loan Type</TableHead>
+              <TableHead className="h-14 px-4 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Amount</TableHead>
+              <TableHead className="h-14 px-4 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Income/mo</TableHead>
+              <TableHead className="h-14 px-4 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Employment</TableHead>
+              <TableHead className="h-14 px-4 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Status</TableHead>
+              <TableHead className="h-14 px-4 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Eligibility</TableHead>
+              <TableHead className="h-14 px-4 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Date</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {slice.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-12 text-gray-400">
+                <TableCell colSpan={9} className="px-4 py-16 text-center text-sm text-muted-foreground">
                   No leads found. Run a campaign to start calling customers.
                 </TableCell>
               </TableRow>
             )}
             {slice.map((lead) => (
-              <TableRow key={lead.id} className="hover:bg-gray-50">
-                <TableCell>
-                  <div className="font-medium text-sm text-gray-900">{lead.name ?? "—"}</div>
-                  <div className="text-xs text-gray-400">{lead.phone}</div>
+              <TableRow key={lead.id} className="border-black/5 hover:bg-white/60">
+                <TableCell className="px-4 py-4">
+                  <div className="font-medium text-[0.98rem] text-foreground">{lead.name ?? "—"}</div>
+                  <div className="mt-1 text-xs font-medium tracking-[0.05em] text-muted-foreground">{lead.phone}</div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="px-4 py-4">
                   {lead.loanType ? (
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${LOAN_COLORS[lead.loanType] ?? "bg-gray-100 text-gray-600"}`}>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.15em] ${LOAN_COLORS[lead.loanType] ?? "bg-gray-100 text-gray-600"}`}>
                       {lead.loanType.charAt(0).toUpperCase() + lead.loanType.slice(1)}
                     </span>
                   ) : "—"}
                 </TableCell>
-                <TableCell className="text-sm text-gray-700">{formatINR(lead.loanAmount)}</TableCell>
-                <TableCell className="text-sm text-gray-700">
+                <TableCell className="px-4 py-4 text-sm font-medium text-foreground">{formatINR(lead.loanAmount)}</TableCell>
+                <TableCell className="px-4 py-4 text-sm text-foreground">
                   {lead.monthlyIncome ? `₹${lead.monthlyIncome.toLocaleString("en-IN")}` : "—"}
                 </TableCell>
-                <TableCell className="text-xs text-gray-600 capitalize">
+                <TableCell className="px-4 py-4 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
                   {lead.employmentType?.replace("_", " ") ?? "—"}
                 </TableCell>
-                <TableCell><StatusBadge value={lead.status} /></TableCell>
-                <TableCell><StatusBadge value={lead.eligibility} /></TableCell>
-                <TableCell className="text-xs text-gray-400">
+                <TableCell className="px-4 py-4"><StatusBadge value={lead.status} /></TableCell>
+                <TableCell className="px-4 py-4"><StatusBadge value={lead.eligibility} /></TableCell>
+                <TableCell className="px-4 py-4 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
                   {new Date(lead.createdAt).toLocaleDateString("en-IN")}
                 </TableCell>
-                <TableCell>
-                  <Link href={`/leads/${lead.id}`}>
-                    <Button variant="outline" size="sm" className="text-xs">View</Button>
+                <TableCell className="px-4 py-4">
+                  <Link href={`/leads/${lead.id}`} className="inline-flex">
+                    <Button variant="outline" size="sm" className="rounded-full border-black/10 bg-white/80 px-4 text-xs font-semibold uppercase tracking-[0.16em] text-foreground hover:bg-white">
+                      View
+                    </Button>
                   </Link>
                 </TableCell>
               </TableRow>
@@ -93,11 +95,11 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
       </div>
 
       {pages > 1 && (
-        <div className="flex items-center justify-between mt-4 text-sm text-gray-500">
-          <span>Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total}</span>
+        <div className="mt-5 flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <span className="font-medium">Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total}</span>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Prev</Button>
-            <Button variant="outline" size="sm" disabled={page >= pages - 1} onClick={() => setPage(p => p + 1)}>Next</Button>
+            <Button variant="outline" size="sm" className="rounded-full border-black/10 bg-white/65 px-4" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Prev</Button>
+            <Button variant="outline" size="sm" className="rounded-full border-black/10 bg-white/65 px-4" disabled={page >= pages - 1} onClick={() => setPage(p => p + 1)}>Next</Button>
           </div>
         </div>
       )}
