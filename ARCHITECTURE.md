@@ -1,336 +1,294 @@
-# LoanPilot — Architecture & Coding Guide
+# LoanPilot Architecture
 
-## Problem Statement
-Banks make millions of outbound loan marketing calls. Human agents waste 80% of time on unqualified leads.
-LoanPilot deploys a Bolna voice agent that calls customers, pre-qualifies them for Home / Personal / Business / Auto loans,
-and gives bank managers a dashboard with lead status + AI-generated conversation summaries.
+## Overview
 
----
+LoanPilot is a single Next.js application that handles both the product UI and the API surface for campaign operations, lead management, and Bolna webhooks.
 
-## System Overview
+There is no separate Python or FastAPI backend in the current repository. The API layer is implemented with Next.js route handlers under `app/app/api`, while server-rendered pages can also read directly from Postgres through Prisma.
 
+## Current System Shape
+
+```text
+[Bank manager]
+      |
+      v
+[Next.js UI: dashboard, leads, campaigns]
+      |
+      +------------------------------+
+      |                              |
+      v                              v
+[Server Components]          [Route Handlers /api/*]
+      |                              |
+      +--------------+---------------+
+                     |
+                     v
+          [Prisma + PrismaPg adapter]
+                     |
+                     v
+                [Postgres / Neon]
+
+[Bolna outbound calls] ---> [/api/webhook/bolna]
+                                   |
+                                   v
+                    [Eligibility + summary services]
+                                   |
+                                   v
+                               [Lead records]
 ```
-[Bank uploads CSV] → [Bolna Batch Campaign]
-                              ↓
-                    [Bolna Voice Agent calls customer]
-                              ↓
-              Customer expresses interest / declines
-                              ↓
-                    [Agent fires tool calls → FastAPI backend]
-                      - fetch_customer_profile()
-                      - check_eligibility()
-                      - log_lead()
-                      - generate_summary()
-                              ↓
-                    [Next.js Dashboard]
-                    Bank manager sees:
-                    - Leads table (loan type, amount, eligibility)
-                    - Conversation summary per lead
-                    - Funnel: Called → Interested → Pre-qualified → Passed to RM
-```
-
----
 
 ## Tech Stack
 
-| Layer       | Technology              | Reason                                      |
-|-------------|-------------------------|---------------------------------------------|
-| Frontend    | Next.js 14 (App Router) | File-based routing, server components       |
-| UI          | Tailwind CSS + shadcn/ui| Fast, consistent enterprise UI              |
-| Backend     | Python FastAPI          | Fast async, clean Pydantic models           |
-| Database    | SQLite via SQLAlchemy   | Zero-config, sufficient for demo scale      |
-| Voice Agent | Bolna                   | Outbound calling, batch campaigns           |
-| AI Summary  | Claude API (claude-haiku-4-5-20251001) | Cheap, fast call summarization  |
-| HTTP Client | httpx (async)           | For Bolna API calls from backend            |
+| Layer | Technology | Notes |
+| --- | --- | --- |
+| App shell | Next.js 16 App Router | UI pages and API route handlers live in the same app |
+| UI | React 19 + Tailwind CSS 4 + shadcn/ui | Dashboard and admin workflows |
+| Database access | Prisma 7 + `@prisma/adapter-pg` | Runtime uses Postgres through Prisma's pg adapter |
+| Database | PostgreSQL | Configured for Neon-style pooled and direct connections |
+| Voice outreach | Bolna | Batch or demo outbound calling |
+| Summaries | OpenRouter via OpenAI SDK | Optional; falls back to a mock summary when unset |
 
----
+## Repository Layout
 
-## Project Structure
-
-```
+```text
 loanpilot/
 ├── ARCHITECTURE.md
-├── frontend/
-│   ├── package.json
-│   ├── tailwind.config.ts
-│   ├── app/
-│   │   ├── layout.tsx               # Root layout with sidebar nav
-│   │   ├── page.tsx                 # Dashboard home → redirect to /leads
-│   │   ├── leads/
-│   │   │   ├── page.tsx             # Leads table with filters
-│   │   │   └── [id]/
-│   │   │       └── page.tsx         # Lead detail: summary + transcript
-│   │   └── campaigns/
-│   │       └── page.tsx             # Create campaign (upload CSV + trigger Bolna batch)
-│   └── components/
-│       ├── LeadsTable.tsx           # Sortable/filterable table
-│       ├── FunnelChart.tsx          # Called→Interested→Qualified→RM funnel
-│       ├── ConversationSummary.tsx  # Expandable AI summary card
-│       ├── StatusBadge.tsx          # Color-coded lead status pill
-│       └── Sidebar.tsx              # Nav: Dashboard, Leads, Campaigns
-├── backend/
-│   ├── requirements.txt
-│   ├── main.py                      # FastAPI app entry, CORS, router registration
-│   ├── database.py                  # SQLAlchemy engine + session + Base
-│   ├── models/
-│   │   ├── lead.py                  # Lead ORM model
-│   │   └── campaign.py              # Campaign ORM model
-│   ├── schemas/
-│   │   ├── lead.py                  # Pydantic request/response schemas
-│   │   └── campaign.py
-│   ├── routes/
-│   │   ├── webhook.py               # POST /webhook/bolna — receives tool call events
-│   │   ├── leads.py                 # GET /leads, GET /leads/{id}
-│   │   └── campaigns.py             # POST /campaigns, GET /campaigns
-│   └── services/
-│       ├── eligibility.py           # Pre-qualification rules engine
-│       ├── summary.py               # Claude API call → generate summary
-│       └── bolna_client.py          # Bolna REST API wrapper
-└── bolna/
-    ├── agent_prompt.md              # Full system prompt for Bolna agent
-    └── agent_config.json            # Bolna agent creation payload (tools + TTS config)
+├── bolna/
+│   ├── agent_config.json
+│   ├── agent_prompt.md
+│   └── SETUP.md
+└── app/
+    ├── app/
+    │   ├── dashboard/page.tsx
+    │   ├── leads/page.tsx
+    │   ├── leads/[id]/page.tsx
+    │   ├── campaigns/page.tsx
+    │   ├── campaigns/[id]/page.tsx
+    │   └── api/
+    │       ├── dashboard/stats/route.ts
+    │       ├── leads/route.ts
+    │       ├── leads/[id]/route.ts
+    │       ├── campaigns/route.ts
+    │       ├── campaigns/[id]/batch/route.ts
+    │       ├── campaigns/[id]/retrigger/route.ts
+    │       └── webhook/bolna/route.ts
+    ├── components/
+    ├── lib/
+    │   ├── api.ts
+    │   ├── bolna.ts
+    │   ├── config.ts
+    │   ├── data.ts
+    │   ├── db.ts
+    │   └── services/
+    │       ├── eligibility.ts
+    │       └── summary.ts
+    └── prisma/
+        ├── schema.prisma
+        ├── migrations/
+        └── seed.ts
 ```
 
----
+## Runtime Responsibilities
 
-## Data Models
+### 1. UI Layer
 
-### Lead
+The user-facing product is built inside the Next.js App Router:
+
+- `/dashboard` shows portfolio metrics and qualification charts.
+- `/leads` lists leads with status and loan-type filtering.
+- `/leads/[id]` exposes transcript, summary, and lead editing controls.
+- `/campaigns` creates campaigns and starts batch uploads.
+- `/campaigns/[id]` shows campaign-level progress and associated leads.
+
+Server components use `app/lib/data.ts` to query the database directly. This avoids unnecessary internal HTTP calls during page rendering.
+
+### 2. API Layer
+
+The app's API is implemented with Next.js route handlers:
+
+- `GET /api/dashboard/stats`
+- `GET /api/leads`
+- `POST /api/leads`
+- `GET /api/leads/[id]`
+- `PATCH /api/leads/[id]`
+- `GET /api/campaigns`
+- `POST /api/campaigns`
+- `POST /api/campaigns/[id]/batch`
+- `POST /api/campaigns/[id]/retrigger`
+- `POST /api/webhook/bolna`
+
+This is the only backend API layer currently present in the repository.
+
+### 3. Data Access
+
+Prisma is the persistence boundary:
+
+- `app/lib/db.ts` creates the shared Prisma client.
+- Runtime queries use `DATABASE_URL`.
+- Prisma CLI and migrations use `DIRECT_URL` from `app/prisma.config.ts`.
+
+The app is designed around a Postgres deployment, not SQLite.
+
+### 4. External Integrations
+
+#### Bolna
+
+Bolna is used for outbound loan-calling workflows:
+
+- campaign batch creation
+- demo-call fallback
+- execution lookup during webhook handling
+
+The integration code lives in `app/lib/bolna.ts`.
+
+#### OpenRouter
+
+OpenRouter is used to summarize transcripts through the OpenAI SDK wrapper in `app/lib/services/summary.ts`.
+
+If `OPENROUTER_API_KEY` is not configured, the app still works and returns a mock summary instead of failing the workflow.
+
+## Main Flows
+
+### Campaign Creation and Launch
+
+```text
+Manager creates campaign
+  -> POST /api/campaigns
+  -> campaign stored in Postgres with status=draft
+
+Manager uploads contacts
+  -> POST /api/campaigns/[id]/batch
+  -> leads are upserted into Postgres
+  -> campaign totals are updated
+  -> app attempts Bolna batch trigger
+  -> if batch mode is unavailable, app can fall back to a single demo call
 ```
-id              INTEGER PRIMARY KEY
-phone           TEXT NOT NULL
-name            TEXT
-campaign_id     INTEGER FK → Campaign
-loan_type       TEXT  -- "home" | "personal" | "business" | "auto" | null
-loan_amount     REAL  -- requested amount in INR
-monthly_income  REAL
-employment_type TEXT  -- "salaried" | "self_employed" | "business_owner"
-status          TEXT  -- "called" | "not_interested" | "interested" | "pre_qualified" | "passed_to_rm"
-eligibility     TEXT  -- "eligible" | "ineligible" | "review_needed" | "pending"
-call_transcript TEXT  -- raw transcript from Bolna webhook
-summary         TEXT  -- AI-generated summary (Claude)
-bolna_call_id   TEXT  -- Bolna's call ID for reference
-created_at      DATETIME
-updated_at      DATETIME
+
+### Lead Management
+
+```text
+Server-rendered pages
+  -> app/lib/data.ts
+  -> Prisma queries
+  -> Postgres
+
+Client-side edits
+  -> app/lib/api.ts
+  -> PATCH /api/leads/[id]
+  -> Postgres update
 ```
+
+### Bolna Webhook Processing
+
+`POST /api/webhook/bolna` supports two payload families:
+
+1. Tool webhooks
+   - `fetch_customer_profile`
+   - `check_eligibility`
+   - `log_lead`
+
+2. Execution webhooks
+   - call completion / transcript-oriented payloads
+
+The route then:
+
+- resolves the phone number from parameters, execution payload, or a Bolna execution lookup
+- runs the eligibility rules when needed
+- generates a transcript summary when available
+- upserts the lead in Postgres
+
+## Service Boundaries
+
+### `app/lib/data.ts`
+
+Server-only data access for App Router pages. This is the preferred path for server components.
+
+### `app/lib/api.ts`
+
+Browser-facing API client used by client components for create/update actions.
+
+### `app/lib/services/eligibility.ts`
+
+Pure rule engine for loan pre-qualification. Current rules are based on:
+
+- loan type
+- monthly income thresholds
+- employment type
+- income-to-loan ratio limits
+
+### `app/lib/services/summary.ts`
+
+Transcript summarization service with graceful fallback behavior when external AI credentials are missing or the request fails.
+
+## Data Model
 
 ### Campaign
-```
-id              INTEGER PRIMARY KEY
-name            TEXT NOT NULL
-bank_name       TEXT
-total_leads     INTEGER
-called_count    INTEGER DEFAULT 0
-interested_count INTEGER DEFAULT 0
-qualified_count INTEGER DEFAULT 0
-bolna_batch_id  TEXT
-status          TEXT  -- "draft" | "running" | "completed"
-created_at      DATETIME
-```
 
----
+| Field | Type | Purpose |
+| --- | --- | --- |
+| `id` | `Int` | Primary key |
+| `name` | `String` | Campaign name |
+| `bankName` | `String?` | Bank label shown in UI and sent to Bolna |
+| `totalLeads` | `Int` | Count captured at batch start |
+| `calledCount` | `Int` | Current stored call count summary |
+| `interestedCount` | `Int` | Stored interested count |
+| `qualifiedCount` | `Int` | Stored qualified count |
+| `bolnaBatchId` | `String?` | Batch reference from Bolna |
+| `status` | `String` | Draft/running/completed style workflow state |
+| `createdAt` | `DateTime` | Creation timestamp |
 
-## API Contracts
+### Lead
 
-### Bolna Webhook (Bolna → Backend)
-Bolna calls our backend when the agent invokes a tool. All tool calls hit:
-```
-POST /webhook/bolna
-Content-Type: application/json
+| Field | Type | Purpose |
+| --- | --- | --- |
+| `id` | `Int` | Primary key |
+| `phone` | `String` | Unique customer identifier in the app |
+| `name` | `String?` | Optional customer name |
+| `campaignId` | `Int?` | Owning campaign |
+| `loanType` | `String?` | Home, personal, business, or auto |
+| `loanAmount` | `Float?` | Requested amount |
+| `monthlyIncome` | `Float?` | Used for eligibility rules |
+| `employmentType` | `String?` | Used for eligibility rules |
+| `status` | `String` | Pipeline state shown to managers |
+| `eligibility` | `String` | Pending, eligible, ineligible, or review-needed style state |
+| `callTranscript` | `String?` | Raw transcript |
+| `summary` | `String?` | Generated call summary |
+| `bolnaCallId` | `String?` | Execution or call reference |
+| `createdAt` | `DateTime` | Creation timestamp |
+| `updatedAt` | `DateTime` | Last update timestamp |
 
-{
-  "tool_name": "check_eligibility" | "log_lead" | "fetch_customer_profile",
-  "call_id": "bolna_call_xyz",
-  "parameters": { ...tool-specific fields }
-}
-```
+## Configuration
 
-Tool-specific parameter shapes:
+Environment variables are defined in `app/.env.example`.
 
-**fetch_customer_profile**
-```json
-{ "phone": "+919876543210" }
-```
-Response: `{ "name": "Rahul Sharma", "existing_loans": 1, "relationship": "existing_customer" }`
+Required for normal runtime:
 
-**check_eligibility**
-```json
-{
-  "phone": "+919876543210",
-  "loan_type": "home",
-  "loan_amount": 5000000,
-  "monthly_income": 80000,
-  "employment_type": "salaried"
-}
-```
-Response: `{ "eligible": true, "reason": "Income meets 40x loan amount criteria", "max_amount": 6400000 }`
+- `DATABASE_URL`
+- `DIRECT_URL` for Prisma migrations
 
-**log_lead**
-```json
-{
-  "phone": "+919876543210",
-  "loan_type": "home",
-  "loan_amount": 5000000,
-  "monthly_income": 80000,
-  "employment_type": "salaried",
-  "status": "pre_qualified",
-  "call_transcript": "Agent: Hi... Customer: Yes I'm interested..."
-}
-```
-Response: `{ "lead_id": 42, "summary": "Customer Rahul expressed strong interest in ₹50L home loan..." }`
+Optional integrations:
 
-### Frontend → Backend REST API
-```
-GET  /api/leads                     # List leads, supports ?status=&loan_type=&campaign_id=
-GET  /api/leads/{id}                # Lead detail with full transcript + summary
-GET  /api/campaigns                 # List campaigns with funnel counts
-POST /api/campaigns                 # Create campaign + trigger Bolna batch
-GET  /api/dashboard/stats           # { total_called, interested, qualified, conversion_rate }
-```
+- `BOLNA_API_KEY`
+- `BOLNA_AGENT_ID`
+- `BOLNA_FROM_NUMBER`
+- `OPENROUTER_API_KEY`
+- `OPENROUTER_MODEL`
 
----
+## Current Constraints
 
-## Bolna Agent Design
+- Campaign aggregate counters are stored on the campaign record and are not yet recomputed automatically from lead state changes.
+- There is no dedicated auth layer in the current codebase.
+- The webhook route currently centralizes multiple webhook behaviors in one handler.
+- Without Bolna credentials, campaign actions still save leads but do not start real outbound batches.
+- Without OpenRouter credentials, transcript summaries fall back to deterministic mock text.
 
-### Conversation Flow
-```
-1. GREETING     → Introduce as bank AI, ask if they have 2 minutes
-2. INTEREST     → "Are you looking for a loan? (Home/Personal/Business/Auto)"
-3. DETAILS      → Collect: loan amount, monthly income, employment type
-4. TOOL CALL    → check_eligibility() mid-conversation
-5. OUTCOME      → If eligible: inform + offer RM callback. If not: polite decline.
-6. LOG          → log_lead() always, regardless of outcome
-7. CLOSE        → Thank customer, confirm next steps
-```
+## Summary
 
-### Key Prompt Principles
-- Speak in simple English (or Hindi if customer switches)
-- Never promise approval — only "pre-qualification"
-- If customer asks interest rate / EMI → say "our Relationship Manager will share exact details"
-- If customer says not interested → log immediately, don't push
-- Max call duration: 3 minutes
-- Collect minimum viable data: loan_type, loan_amount, monthly_income, employment_type
+The current repository is a monolithic Next.js application with:
 
-### Tools defined in Bolna agent config
-```json
-[
-  {
-    "name": "fetch_customer_profile",
-    "description": "Fetch existing customer data from bank CRM",
-    "url": "https://your-backend.com/webhook/bolna",
-    "method": "POST"
-  },
-  {
-    "name": "check_eligibility",
-    "description": "Check if customer pre-qualifies based on income and loan type",
-    "url": "https://your-backend.com/webhook/bolna",
-    "method": "POST"
-  },
-  {
-    "name": "log_lead",
-    "description": "Save lead data and generate conversation summary",
-    "url": "https://your-backend.com/webhook/bolna",
-    "method": "POST"
-  }
-]
-```
+- App Router pages for the manager UI
+- Next.js route handlers for the API layer
+- Prisma/Postgres for persistence
+- Bolna for calling workflows
+- OpenRouter for optional transcript summaries
 
----
-
-## Eligibility Rules (eligibility.py)
-
-Simple rule engine — no ML needed for demo:
-
-| Loan Type    | Min Income (monthly) | Max Loan-to-Income Ratio | Employment Types Accepted           |
-|--------------|----------------------|--------------------------|-------------------------------------|
-| Home         | ₹40,000              | 80x monthly income       | salaried, self_employed             |
-| Personal     | ₹25,000              | 20x monthly income       | salaried, self_employed, business   |
-| Business     | ₹50,000              | 30x monthly income       | business_owner, self_employed       |
-| Auto         | ₹20,000              | 15x monthly income       | all                                 |
-
-Status mapping:
-- Meets all criteria → `eligible` → lead status `pre_qualified`
-- Fails income → `ineligible` → lead status `not_qualified`
-- Borderline (within 20% of threshold) → `review_needed` → lead status `interested`
-
----
-
-## AI Summary Generation (summary.py)
-
-Use Claude claude-haiku-4-5-20251001 (fast + cheap) to generate a 3-sentence summary:
-
-```python
-prompt = f"""
-You are a bank loan officer assistant. Summarize this loan pre-qualification call in 3 sentences:
-1. Customer interest and loan type requested
-2. Financial profile (income, employment)
-3. Eligibility outcome and recommended next step
-
-Transcript:
-{transcript}
-"""
-```
-
----
-
-## Coding Conventions
-
-### Python (FastAPI)
-- Use `async def` for all route handlers
-- Pydantic v2 models for all request/response schemas
-- SQLAlchemy 2.0 style (use `select()`, not `query()`)
-- No global state — use FastAPI `Depends()` for DB sessions
-- All responses use consistent shape: `{ "data": ..., "error": null }`
-- Environment variables via `python-dotenv` — never hardcode secrets
-
-### TypeScript (Next.js)
-- App Router only — no `pages/` directory
-- Fetch data in Server Components where possible (no unnecessary client-side fetching)
-- Client components only when interactivity needed — mark with `"use client"`
-- Use `fetch` with `{ cache: 'no-store' }` for dashboard data (always fresh)
-- Tailwind only for styling — no inline styles, no CSS modules
-- shadcn/ui components as base — don't rebuild what shadcn provides
-
-### General
-- No `any` types in TypeScript
-- No `print()` debugging left in Python — use `logging`
-- Every API route has a try/catch with proper HTTP error codes
-- Seed file (`seed.py`) must create realistic demo data (5 campaigns, 50 leads across all statuses)
-
----
-
-## Environment Variables
-
-### Backend (.env)
-```
-DATABASE_URL=sqlite:///./loanpilot.db
-ANTHROPIC_API_KEY=sk-ant-...
-BOLNA_API_KEY=...
-BOLNA_BASE_URL=https://api.bolna.dev
-FRONTEND_URL=http://localhost:3000
-```
-
-### Frontend (.env.local)
-```
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
----
-
-## Demo Flow (for recording)
-
-1. Open dashboard → show existing campaign with 50 leads
-2. Click a lead → show conversation summary + eligibility outcome
-3. Show funnel chart — conversion rates
-4. Create new campaign → upload mock CSV → trigger Bolna batch
-5. Simulate incoming webhook (Postman/curl) → show lead appearing live
-6. Open lead detail → AI summary generated
-
----
-
-## Out of Scope (do not build)
-- Real payment processing
-- Actual Bolna API integration (use mock/simulated webhooks for demo)
-- Authentication / login
-- Multi-bank tenancy
-- Real credit bureau integration
+That is the source of truth for the current implementation, and it replaces the earlier FastAPI-based architecture.

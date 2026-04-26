@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LoanPilot App
 
-## Getting Started
+LoanPilot is a bank outreach dashboard for managing outbound loan campaigns, tracking lead qualification, and processing Bolna webhook activity from a single Next.js application.
 
-First, run the development server:
+This app handles both:
+
+- the product UI under the App Router
+- the API layer through Next.js route handlers in `app/api/*`
+
+## Stack
+
+- Next.js 16
+- React 19
+- Tailwind CSS 4
+- Prisma 7 with Postgres
+- Bolna for outbound calling
+- OpenRouter for optional transcript summaries
+
+## Local Development
+
+From this directory:
 
 ```bash
+cp .env.example .env
+npm install
+npx prisma migrate dev
+npm run seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Required:
 
-## Learn More
+- `DATABASE_URL`
+- `DIRECT_URL`
 
-To learn more about Next.js, take a look at the following resources:
+Optional:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `BOLNA_API_KEY`
+- `BOLNA_AGENT_ID`
+- `BOLNA_FROM_NUMBER`
+- `OPENROUTER_API_KEY`
+- `OPENROUTER_MODEL`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Main Routes
 
-## Deploy on Vercel
+- `/dashboard` for summary metrics
+- `/leads` for lead filtering and review
+- `/leads/[id]` for transcript and lead editing
+- `/campaigns` for campaign creation and batch launch
+- `/campaigns/[id]` for campaign detail and re-triggering
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## API Routes
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `GET /api/dashboard/stats`
+- `GET /api/leads`
+- `POST /api/leads`
+- `GET /api/leads/[id]`
+- `PATCH /api/leads/[id]`
+- `GET /api/campaigns`
+- `POST /api/campaigns`
+- `POST /api/campaigns/[id]/batch`
+- `POST /api/campaigns/[id]/retrigger`
+- `POST /api/webhook/bolna`
+
+## Notes
+
+- There is no separate FastAPI service in the current implementation.
+- Server-rendered pages query Postgres directly through `lib/data.ts`.
+- If Bolna credentials are missing, campaign actions still save leads locally.
+- If OpenRouter credentials are missing, the app returns a mock summary instead of failing.
+
+See `../ARCHITECTURE.md` for the deeper system breakdown.
