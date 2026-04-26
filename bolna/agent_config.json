@@ -16,11 +16,12 @@
             "agent_flow_type": "preprocessed",
             "use_fillers": true,
           "llm_config": {
-            "model": "gpt-4o-mini",
+            "provider": "openai",
+            "model": "openai/gpt-4o-mini",
             "max_tokens": 200,
             "family": "openai",
             "temperature": 0.3,
-            "base_url": ""
+            "base_url": "https://openrouter.ai/api/v1"
           },
           "system_prompt": "Reference snapshot only. The canonical Bolna prompt for this project lives in agent_import.json. If you manually use this file, keep it synchronized with the imported prompt: greet the customer by {customer_name}, introduce yourself from {bank_name}, only then say 'Let me pull up your details' and call fetch_customer_profile, collect loan_type, loan_amount, monthly_income, employment_type, call check_eligibility after collecting all 4, and always call log_lead at the end of the call."
         },

@@ -9,7 +9,7 @@ Source: https://docs.bolna.ai (fetched April 2026)
 - Bolna account at https://app.bolna.ai
 - A phone number purchased/linked in **My Numbers**
 - Your backend deployed and publicly accessible (use ngrok for local dev)
-- OpenAI API key (for LLM) and ElevenLabs API key (for voice) added under **Providers**
+- OpenRouter API key (for LLM via OpenAI-compatible endpoint), ElevenLabs API key (for voice), and Deepgram API key (for transcription)
 
 ---
 
@@ -18,7 +18,7 @@ Source: https://docs.bolna.ai (fetched April 2026)
 Before creating an agent, add your API keys:
 
 1. Go to **Providers** in the sidebar
-2. Add **OpenAI** key (for gpt-4o-mini)
+2. Add the provider/API key entry needed for the imported agent payload to call OpenRouter
 3. Add **ElevenLabs** key (for Rachel voice)
 4. Add **Deepgram** key (for transcription)
 
@@ -38,8 +38,8 @@ Before creating an agent, add your API keys:
    - **Hangup Condition**: `The customer has clearly indicated they are not interested or the conversation has concluded`
 
 3. Fill the **LLM Tab**:
-   - Provider: OpenAI
-   - Model: `gpt-4o-mini`
+   - Provider/base URL: OpenAI-compatible endpoint at `https://openrouter.ai/api/v1`
+   - Model: `openai/gpt-4o-mini`
    - Temperature: `0.3`
    - Max tokens: `200`
 
