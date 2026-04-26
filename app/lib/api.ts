@@ -121,6 +121,23 @@ export async function startCampaignBatch(
   });
 }
 
+export interface LeadCreate {
+  phone: string;
+  name?: string;
+  campaignId?: number;
+  loanType?: string;
+  loanAmount?: number | null;
+  monthlyIncome?: number | null;
+  employmentType?: string;
+}
+
+export async function createLead(payload: LeadCreate): Promise<Lead> {
+  return apiFetch<Lead>("/api/leads", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function retriggerCampaign(
   campaignId: number
 ): Promise<{ campaign_id: number; leads_retriggered: number; bolna_batch_id: string | null; demo_call_id?: string | null; message: string }> {

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getCampaign, getLeads } from "@/lib/data";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CampaignRetriggerButton } from "@/components/CampaignRetriggerButton";
+import { AddLeadButton } from "@/components/AddLeadButton";
 import { LeadsTable } from "@/components/LeadsTable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,7 +48,12 @@ export default async function CampaignDetailPage({ params }: PageProps) {
           </div>
           <div className="flex flex-col items-end gap-3">
             <StatusBadge value={campaign.status} />
-            <CampaignRetriggerButton campaignId={campaign.id} />
+            <div className="flex gap-2">
+              {campaign.status !== "completed" && (
+                <AddLeadButton campaignId={campaign.id} />
+              )}
+              <CampaignRetriggerButton campaignId={campaign.id} />
+            </div>
           </div>
         </div>
 
