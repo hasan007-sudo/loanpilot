@@ -127,7 +127,19 @@ employment_type = %(employment_type)s
 
 ---
 
-### Tool 3: log_lead
+### Tool 3: end_call
+
+| Field | Value |
+|-------|-------|
+| Name | `end_call` |
+| Description | `Terminate the phone call. Call this immediately after log_lead completes. Never call this before log_lead.` |
+| Key | `hangup` (built-in Bolna action — no URL or parameters needed) |
+
+No parameters or webhook URL required.
+
+---
+
+### Tool 4: log_lead
 
 | Field | Value |
 |-------|-------|

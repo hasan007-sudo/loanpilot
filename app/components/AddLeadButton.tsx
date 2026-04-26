@@ -71,10 +71,12 @@ export function AddLeadButton({ campaignId }: { campaignId: number }) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setForm(emptyForm); setError(null); } }}>
-      <DialogTrigger asChild>
-        <Button className="h-11 rounded-full bg-[#255561] px-5 text-xs font-semibold uppercase tracking-[0.18em] text-white hover:bg-[#1f4954]">
-          <UserPlus className="mr-1 h-4 w-4" /> Add Lead
-        </Button>
+      <DialogTrigger
+        render={
+          <Button className="h-11 rounded-full bg-[#255561] px-5 text-xs font-semibold uppercase tracking-[0.18em] text-white hover:bg-[#1f4954]" />
+        }
+      >
+        <UserPlus className="mr-1 h-4 w-4" /> Add Lead
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
