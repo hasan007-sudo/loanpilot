@@ -8,7 +8,7 @@ export const config = {
   },
   openrouter: {
     apiKey: process.env.OPENROUTER_API_KEY,
-    model: process.env.OPENROUTER_MODEL ?? "google/gemini-2.5-flash-preview",
+    model: process.env.OPENROUTER_MODEL ?? "openai/gpt-4o-mini",
     baseUrl: "https://openrouter.ai/api/v1",
   },
 };
