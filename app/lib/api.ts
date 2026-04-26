@@ -1,6 +1,3 @@
-// API routes are now Next.js built-in — no separate backend needed
-const BASE = "";
-
 export interface Lead {
   id: number;
   phone: string;
@@ -49,7 +46,7 @@ export interface DashboardStats {
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(path, {
     cache: "no-store",
     headers: { "Content-Type": "application/json" },
     ...init,

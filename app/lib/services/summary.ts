@@ -1,9 +1,5 @@
 import OpenAI from "openai";
-
-// OpenRouter — swap model via OPENROUTER_MODEL env var
-// e.g. google/gemini-2.5-flash-preview, openai/gpt-4o, anthropic/claude-sonnet-4-5
-const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
-const MODEL = process.env.OPENROUTER_MODEL ?? "google/gemini-2.5-flash-preview";
+import { config } from "@/lib/config";
 
 function mockSummary(transcript: string): string {
   const snippet = transcript.trim().replace(/\n/g, " ").slice(0, 140);
@@ -13,17 +9,16 @@ function mockSummary(transcript: string): string {
 export async function generateSummary(transcript: string | null): Promise<string> {
   if (!transcript?.trim()) return "No transcript available for this call.";
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
+  if (!config.openrouter.apiKey) {
     console.warn("OPENROUTER_API_KEY not set — returning mock summary");
     return mockSummary(transcript);
   }
 
   try {
-    const client = new OpenAI({ apiKey, baseURL: OPENROUTER_BASE_URL });
+    const client = new OpenAI({ apiKey: config.openrouter.apiKey, baseURL: config.openrouter.baseUrl });
 
     const response = await client.chat.completions.create({
-      model: MODEL,
+      model: config.openrouter.model,
       max_tokens: 400,
       messages: [
         {

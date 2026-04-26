@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { config } from "@/lib/config";
 import { checkEligibility } from "@/lib/services/eligibility";
 import { generateSummary } from "@/lib/services/summary";
 
@@ -65,13 +66,12 @@ function toOptionalNumber(value: unknown) {
 }
 
 async function fetchExecutionDetails(executionId: string): Promise<ExecutionLookup | null> {
-  const apiKey = process.env.BOLNA_API_KEY;
-  if (!apiKey) return null;
+  if (!config.bolna.apiKey) return null;
 
   try {
-    const response = await fetch(`https://api.bolna.ai/executions/${executionId}`, {
+    const response = await fetch(`${config.bolna.apiBase}/executions/${executionId}`, {
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${config.bolna.apiKey}`,
       },
       cache: "no-store",
     });
